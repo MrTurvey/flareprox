@@ -664,11 +664,9 @@ class LocalSocksServer:
         try:
             result = await self._negotiate(reader, writer)
             if not result:
-                print(f"{self.name}: negotiation failed from {peer}")
                 return
 
             hostname, port, request_data = result
-            print(f"{self.name}: SOCKS request from {peer} to {hostname}:{port}")
             
             # Check if target matches manual CF hostname list for override
             connect_hostname = hostname
@@ -679,8 +677,7 @@ class LocalSocksServer:
                 websocket, upstream_source = await self._connect_upstream(
                     connect_hostname, hostname, port
                 )
-            except TunnelSetupError as e:
-                print(f"{self.name}: upstream failed for {hostname}:{port} - {e}")
+            except TunnelSetupError:
                 await self._send_failure(writer)
                 return
 
@@ -695,12 +692,8 @@ class LocalSocksServer:
                 port
             )
 
-        except FlareProxError as e:
-            print(f"{self.name}: FlareProxError from {peer} - {e}")
-        except asyncio.IncompleteReadError as e:
-            print(f"{self.name}: IncompleteRead from {peer} - {e}")
-        except Exception as e:
-            print(f"{self.name}: unexpected error from {peer} - {type(e).__name__}: {e}")
+        except Exception:
+            pass
         finally:
             with contextlib.suppress(Exception):
                 if websocket is not None:
@@ -780,7 +773,6 @@ class LocalSocksServer:
         original_hostname: str,
         port: int
     ) -> Optional[WebSocketClientProtocol]:
-        print(f"{self.name}: bridging {original_hostname}:{port} via {upstream_source}")
         active_ws = websocket
         active_source = upstream_source
         handshake_state = self._HandshakeState(self.replay_buffer_bytes)
@@ -907,10 +899,7 @@ class LocalSocksServer:
                         payload = message
 
                     if payload:
-                        was_unconfirmed = not handshake_state.confirmed
                         handshake_state.mark_established()
-                        if was_unconfirmed:
-                            print(f"{self.name}: handshake established for {original_hostname}:{port}")
                         try:
                             writer.write(payload)
                             await writer.drain()
@@ -924,7 +913,6 @@ class LocalSocksServer:
                     # Check for task exception
                     if client_task.exception() is not None and not isinstance(client_task.exception(), (asyncio.CancelledError,)):
                         exc = client_task.exception()
-                        print(f"{self.name}: client task error for {original_hostname}:{port} - {type(exc).__name__}")
                         raise TunnelSetupError(f"Client read error: {exc}") from exc
                     data = client_task.result()
                     if not data:
@@ -958,9 +946,9 @@ class LocalSocksServer:
                     await task
                 except asyncio.CancelledError:
                     pass
-                except Exception as e:
-                    # Log but suppress exceptions from canceled tasks
-                    print(f"{self.name}: task cleanup exception for {original_hostname}:{port} - {type(e).__name__}")
+                except Exception:
+                    # Suppress exceptions from canceled tasks
+                    pass
 
         return active_ws
 
@@ -991,11 +979,12 @@ class LocalSocksServer:
                     print(f"{self.name}: pre-fallback to relay for {original_hostname}:{port} (hostname matches cf_hostnames)")
                     websocket = await self._connect_relay(original_hostname, port)
                     return websocket, "relay"
-            # Resolve with DoH (if enabled) and check CF ranges
-            is_cf, resolved_ip = check_if_cloudflare_ip(
+            # Resolve with DoH (if enabled) and check CF ranges without blocking the loop
+            is_cf, resolved_ip = await asyncio.to_thread(
+                check_if_cloudflare_ip,
                 original_hostname,
-                use_doh=self.use_doh,
-                doh_timeout=self.doh_timeout,
+                self.use_doh,
+                self.doh_timeout,
             )
             if is_cf and self.relay_enabled:
                 print(f"{self.name}: pre-fallback to relay for {original_hostname}:{port} (Target served by Cloudflare IP range)")
