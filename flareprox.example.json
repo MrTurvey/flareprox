@@ -1,0 +1,34 @@
+{
+  "cloudflare": {
+    "api_token": "your_cloudflare_api_token_here",
+    "account_id": "your_cloudflare_account_id_here"
+  },
+  "worker": {
+    "socks_password": "FLAREPROX_RELAY_PASSWORD",
+    "auth_token": "",
+    "compatibility_date": "2023-09-04",
+    "compatibility_flags": [
+      "nodejs_compat"
+    ],
+    "mode": "socks"
+  },
+  "client": {
+    "bind_host": "0.0.0.0",
+    "base_port": 1080,
+    "profiles": [],
+    "auto_random_ports": false,
+    "cf_override_ip": "",
+    "cf_hostnames": [
+      "ifconfig.io"
+    ],
+    "handshake_timeout": 2.0,
+    "relay": {
+      "enabled": true,
+      "url": "wss://flareprox-relay-zzzzz-uw.a.run.app",
+      "auth_token": "",
+      "socks_password": "FLAREPROX_RELAY_PASSWORD"
+    },
+    "use_doh": true,
+    "doh_timeout": 3.0
+  }
+}
