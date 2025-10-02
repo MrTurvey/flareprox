@@ -41,7 +41,7 @@ pip install -r requirements.txt
 
 ### 2. Configure Cloudflare Access
 
-Run `python3 fireprox.py config` or directly edit `flareprox.json` in the project directory:
+Run `python3 flareprox.py config` or directly edit `flareprox.json` in the project directory:
 ```json
 {
   "cloudflare": {
